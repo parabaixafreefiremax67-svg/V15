@@ -1,0 +1,613 @@
+print(">>> PET HUB v15 - MINIMIZADO")
+
+local P = game:GetService("Players")
+local RS = game:GetService("RunService")
+local U = game:GetService("UserInputService")
+local VIM = game:GetService("VirtualInputManager")
+local cam = workspace.CurrentCamera
+local pl = P.LocalPlayer
+
+local cfg = {vT=500, vC=16, base=nil, pet=nil, auto=false, alerta=true}
+
+local sg = Instance.new("ScreenGui", pl:WaitForChild("PlayerGui"))
+sg.Name = "PetHub"
+sg.ResetOnSpawn = false
+sg.IgnoreGuiInset = true
+
+-- BOTÃO FLUTUANTE (minimizado)
+local b = Instance.new("TextButton", sg)
+b.Size = UDim2.new(0,50,0,50)
+b.Position = UDim2.new(0, 15, 0.5, -25)
+b.BackgroundColor3 = Color3.fromRGB(15,15,20)
+b.Text = "🐾"
+b.TextSize = 24
+b.TextColor3 = Color3.fromRGB(180,130,255)
+b.Font = Enum.Font.GothamBold
+b.BorderSizePixel = 0
+b.Active = true
+b.Draggable = true
+Instance.new("UICorner", b).CornerRadius = UDim.new(1,0)
+Instance.new("UIStroke", b).Color = Color3.fromRGB(120,80,200)
+Instance.new("UIStroke", b).Thickness = 2
+
+-- MENU (começa invisível)
+local j = Instance.new("Frame", sg)
+j.Size = UDim2.new(0,300,0,440)
+j.Position = UDim2.new(0.5,-150,0.5,-220)
+j.BackgroundColor3 = Color3.fromRGB(10,10,15)
+j.BorderSizePixel = 0
+j.Visible = false
+j.Active = true
+j.Draggable = true
+Instance.new("UICorner", j).CornerRadius = UDim.new(0,10)
+
+local ti = Instance.new("TextLabel", j)
+ti.Size = UDim2.new(1,-40,0,28)
+ti.Position = UDim2.new(0,10,0,2)
+ti.BackgroundTransparency = 1
+ti.Text = "🐾 PET HUB"
+ti.TextColor3 = Color3.fromRGB(200,150,255)
+ti.TextSize = 13
+ti.Font = Enum.Font.GothamBold
+ti.TextXAlignment = Enum.TextXAlignment.Left
+
+-- BOTÃO MINIMIZAR (—)
+local min = Instance.new("TextButton", j)
+min.Size = UDim2.new(0,22,0,22)
+min.Position = UDim2.new(1,-52,0,3)
+min.BackgroundColor3 = Color3.fromRGB(80,80,120)
+min.Text = "—"
+min.TextColor3 = Color3.fromRGB(255,255,255)
+min.Font = Enum.Font.GothamBold
+min.TextSize = 12
+min.BorderSizePixel = 0
+Instance.new("UICorner", min).CornerRadius = UDim.new(0,4)
+
+local x = Instance.new("TextButton", j)
+x.Size = UDim2.new(0,22,0,22)
+x.Position = UDim2.new(1,-26,0,3)
+x.BackgroundColor3 = Color3.fromRGB(220,60,60)
+x.Text = "X"
+x.TextColor3 = Color3.fromRGB(255,255,255)
+x.Font = Enum.Font.GothamBold
+x.TextSize = 10
+x.BorderSizePixel = 0
+Instance.new("UICorner", x).CornerRadius = UDim.new(0,4)
+
+local af = Instance.new("Frame", j)
+af.Size = UDim2.new(1,-16,0,22)
+af.Position = UDim2.new(0,8,0,32)
+af.BackgroundTransparency = 1
+local al = Instance.new("UIListLayout", af)
+al.FillDirection = Enum.FillDirection.Horizontal
+al.Padding = UDim.new(0,3)
+
+local pg, bt = {}, {}
+local function novaAba(nome, ord)
+    local bb = Instance.new("TextButton", af)
+    bb.Size = UDim2.new(0,92,0,20)
+    bb.BackgroundColor3 = Color3.fromRGB(22,22,32)
+    bb.Text = nome
+    bb.TextColor3 = Color3.fromRGB(160,160,160)
+    bb.Font = Enum.Font.Gotham
+    bb.TextSize = 9
+    bb.BorderSizePixel = 0
+    bb.LayoutOrder = ord
+    Instance.new("UICorner", bb).CornerRadius = UDim.new(0,4)
+    local pp = Instance.new("Frame", j)
+    pp.Size = UDim2.new(1,-16,1,-64)
+    pp.Position = UDim2.new(0,8,0,60)
+    pp.BackgroundTransparency = 1
+    pp.Visible = false
+    pg[nome] = pp
+    bt[nome] = bb
+    return pp
+end
+
+local PP = novaAba("Pets", 1)
+local PT = novaAba("TP+Tween", 2)
+local PM = novaAba("Misc", 3)
+
+local function trocar(n)
+    for k, v in pairs(pg) do
+        v.Visible = (k == n)
+        bt[k].BackgroundColor3 = (k == n) and Color3.fromRGB(80,50,160) or Color3.fromRGB(22,22,32)
+        bt[k].TextColor3 = (k == n) and Color3.fromRGB(255,255,255) or Color3.fromRGB(160,160,160)
+    end
+end
+
+bt["Pets"].MouseButton1Click:Connect(function() trocar("Pets") end)
+bt["TP+Tween"].MouseButton1Click:Connect(function() trocar("TP+Tween") end)
+bt["Misc"].MouseButton1Click:Connect(function() trocar("Misc") end)
+
+-- VOAR (estilo Miranda)
+local voando = false
+local cancelarVoo = false
+
+local function voarPara(destino, velocidade)
+    if voando then return end
+    voando = true
+    cancelarVoo = false
+    local ch = pl.Character
+    if not ch then voando = false return end
+    local h = ch:FindFirstChild("HumanoidRootPart")
+    local hum = ch:FindFirstChild("Humanoid")
+    if not h or not hum then voando = false return end
+    pcall(function() hum:ChangeState(Enum.HumanoidStateType.Physics) end)
+    local inicio = h.CFrame
+    local alvo = CFrame.new(destino.Position + Vector3.new(0, 12, 0))
+    local distancia = (inicio.Position - alvo.Position).Magnitude
+    local tempo = math.max(distancia / velocidade, 0.3)
+    local t = 0
+    local conn
+    conn = RS.Heartbeat:Connect(function(dt)
+        if cancelarVoo then
+            conn:Disconnect()
+            voando = false
+            pcall(function() hum:ChangeState(Enum.HumanoidStateType.GettingUp) end)
+            return
+        end
+        t = t + dt
+        local pct = math.min(t / tempo, 1)
+        h.CFrame = inicio:Lerp(alvo, pct)
+        h.AssemblyLinearVelocity = Vector3.zero
+        h.AssemblyAngularVelocity = Vector3.zero
+        if pct >= 1 then
+            conn:Disconnect()
+            pcall(function() hum:ChangeState(Enum.HumanoidStateType.GettingUp) end)
+            voando = false
+        end
+    end)
+end
+
+-- SEGURAR NO PET
+local function segurarNoPet(petPart)
+    if not petPart then return end
+    local pos, naTela = cam:WorldToViewportPoint(petPart.Position)
+    if not naTela then return end
+    pcall(function()
+        VIM:SendMouseButtonEvent(pos.X, pos.Y, 0, true, game, 1)
+    end)
+    task.wait(2)
+    pcall(function()
+        VIM:SendMouseButtonEvent(pos.X, pos.Y, 0, false, game, 1)
+    end)
+end
+
+-- IR PEGAR E VOLTAR
+local function irPegarVoltar()
+    if not cfg.pet or not cfg.pet.parte then return end
+    local ch = pl.Character
+    if not ch then return end
+    local h = ch:FindFirstChild("HumanoidRootPart")
+    if not h then return end
+    cfg.base = cfg.base or h.CFrame
+    voarPara(cfg.pet.parte, cfg.vT)
+    while voando do task.wait(0.1) end
+    task.wait(0.3)
+    segurarNoPet(cfg.pet.parte)
+    task.wait(0.5)
+    if cfg.base then
+        voarPara(cfg.base, cfg.vT * 1.5)
+        while voando do task.wait(0.1) end
+    end
+end
+
+-- LISTA
+local sp = Instance.new("ScrollingFrame", PP)
+sp.Size = UDim2.new(1,0,1,-110)
+sp.BackgroundTransparency = 1
+sp.BorderSizePixel = 0
+sp.ScrollBarThickness = 3
+sp.CanvasSize = UDim2.new(0,0,0,0)
+Instance.new("UIListLayout", sp).Padding = UDim.new(0,3)
+
+local petsMapa = {}
+
+local function pegarValor(o)
+    local v = o:GetAttribute("Value") or o:GetAttribute("Earnings") or o:GetAttribute("Renda") or o:GetAttribute("Money") or o:GetAttribute("Income") or 0
+    local fv = o:FindFirstChild("Value") or o:FindFirstChild("Earnings") or o:FindFirstChild("Renda") or o:FindFirstChild("Income")
+    if fv and fv:IsA("ValueBase") then v = fv.Value end
+    return tonumber(v) or 0
+end
+
+local function escanear()
+    petsMapa = {}
+    for _, o in ipairs(workspace:GetDescendants()) do
+        if o:IsA("Model") and o.Parent then
+            local pt = o:FindFirstChild("HumanoidRootPart") or o.PrimaryPart or o:FindFirstChildWhichIsA("BasePart")
+            if pt then
+                local v = pegarValor(o)
+                local nl = o.Name:lower()
+                local ePet = nl:find("egg") or nl:find("ovo") or nl:find("brainrot") or nl:find("pet") or nl:find("gorilla") or nl:find("gorila") or nl:find("dragon") or nl:find("demon") or nl:find("eternal")
+                if ePet or v > 0 then
+                    table.insert(petsMapa, {nome=o.Name, valor=v, parte=pt, obj=o})
+                end
+            end
+        end
+    end
+    table.sort(petsMapa, function(a,b) return a.valor > b.valor end)
+end
+
+local function icone(obj)
+    local img = ""
+    local dec = obj:FindFirstChildWhichIsA("Decal", true)
+    if dec then img = dec.Texture end
+    if img == "" then
+        for _, d in ipairs(obj:GetDescendants()) do
+            if d:IsA("Decal") or d:IsA("Texture") then
+                img = d.Texture
+                break
+            end
+        end
+    end
+    return img
+end
+
+local function atualizar()
+    for _, f in ipairs(sp:GetChildren()) do
+        if f:IsA("TextButton") then f:Destroy() end
+    end
+    escanear()
+    for i, pet in ipairs(petsMapa) do
+        local li = Instance.new("TextButton", sp)
+        li.Size = UDim2.new(1,-4,0,44)
+        li.BackgroundColor3 = Color3.fromRGB(18,18,25)
+        li.Text = ""
+        li.BorderSizePixel = 0
+        li.LayoutOrder = i
+        Instance.new("UICorner", li).CornerRadius = UDim.new(0,5)
+
+        local ic = Instance.new("ImageLabel", li)
+        ic.Size = UDim2.new(0,34,0,34)
+        ic.Position = UDim2.new(0,5,0,5)
+        ic.BackgroundColor3 = Color3.fromRGB(40,30,60)
+        ic.BorderSizePixel = 0
+        ic.Image = icone(pet.obj)
+        ic.ScaleType = Enum.ScaleType.Fit
+        Instance.new("UICorner", ic).CornerRadius = UDim.new(0,5)
+
+        local n = Instance.new("TextLabel", li)
+        n.Size = UDim2.new(0,180,0,14)
+        n.Position = UDim2.new(0,44,0,5)
+        n.BackgroundTransparency = 1
+        n.Text = pet.nome
+        n.TextColor3 = Color3.fromRGB(255,255,255)
+        n.Font = Enum.Font.Gotham
+        n.TextSize = 10
+        n.TextXAlignment = Enum.TextXAlignment.Left
+
+        local vv = Instance.new("TextLabel", li)
+        vv.Size = UDim2.new(0,180,0,12)
+        vv.Position = UDim2.new(0,44,0,22)
+        vv.BackgroundTransparency = 1
+        vv.Text = "💰 " .. tostring(pet.valor)
+        vv.TextColor3 = Color3.fromRGB(100,255,100)
+        vv.Font = Enum.Font.Gotham
+        vv.TextSize = 9
+        vv.TextXAlignment = Enum.TextXAlignment.Left
+
+        li.MouseButton1Click:Connect(function()
+            cfg.pet = pet
+            for _, f in ipairs(sp:GetChildren()) do
+                if f:IsA("TextButton") then f.BackgroundColor3 = Color3.fromRGB(18,18,25) end
+            end
+            li.BackgroundColor3 = Color3.fromRGB(60,40,120)
+        end)
+    end
+    sp.CanvasSize = UDim2.new(0,0,0,#petsMapa*47)
+end
+
+local function btn(parent, txt, cor, y, xp, wp)
+    local bb = Instance.new("TextButton", parent)
+    bb.Size = UDim2.new(wp or 1, -8, 0, 26)
+    bb.Position = UDim2.new(xp or 0, 4, 1, y)
+    bb.BackgroundColor3 = cor
+    bb.Text = txt
+    bb.TextColor3 = Color3.fromRGB(255,255,255)
+    bb.Font = Enum.Font.GothamBold
+    bb.TextSize = 10
+    bb.BorderSizePixel = 0
+    Instance.new("UICorner", bb).CornerRadius = UDim.new(0,6)
+    return bb
+end
+
+local bTw = btn(PP, "🐢 Tween Egg", Color3.fromRGB(80,140,80), -84, 0, 0.5)
+local bTp = btn(PP, "⚡ TP Egg", Color3.fromRGB(60,160,60), -84, 0.5, 0.5)
+local bIv = btn(PP, "🔁 Ir Pegar e Voltar", Color3.fromRGB(180,100,60), -54)
+local bVl = btn(PP, "🏠 Voltar Base", Color3.fromRGB(160,80,60), -26)
+
+bTw.MouseButton1Click:Connect(function()
+    if not cfg.pet then return end
+    local ch = pl.Character
+    if ch and ch:FindFirstChild("HumanoidRootPart") then
+        cfg.base = cfg.base or ch.HumanoidRootPart.CFrame
+        task.spawn(function() voarPara(cfg.pet.parte, cfg.vT) end)
+    end
+end)
+
+bTp.MouseButton1Click:Connect(function()
+    if not cfg.pet then return end
+    local ch = pl.Character
+    if ch and ch:FindFirstChild("HumanoidRootPart") then
+        cfg.base = cfg.base or ch.HumanoidRootPart.CFrame
+        ch.HumanoidRootPart.CFrame = CFrame.new(cfg.pet.parte.Position + Vector3.new(0,12,0))
+    end
+end)
+
+bIv.MouseButton1Click:Connect(function() task.spawn(irPegarVoltar) end)
+bVl.MouseButton1Click:Connect(function()
+    if cfg.base then task.spawn(function() voarPara(cfg.base, cfg.vT * 1.5) end) end
+end)
+
+task.spawn(function()
+    while task.wait(1) do
+        if j.Visible and pg["Pets"].Visible then atualizar() end
+    end
+end)
+
+-- ABA TP+TWEEN
+local bSv = Instance.new("TextButton", PT)
+bSv.Size = UDim2.new(1,-8,0,26)
+bSv.Position = UDim2.new(0,4,0,2)
+bSv.BackgroundColor3 = Color3.fromRGB(60,60,160)
+bSv.Text = "📌 Salvar Base"
+bSv.TextColor3 = Color3.fromRGB(255,255,255)
+bSv.Font = Enum.Font.GothamBold
+bSv.TextSize = 10
+bSv.BorderSizePixel = 0
+Instance.new("UICorner", bSv).CornerRadius = UDim.new(0,6)
+
+local bTb = Instance.new("TextButton", PT)
+bTb.Size = UDim2.new(1,-8,0,26)
+bTb.Position = UDim2.new(0,4,0,32)
+bTb.BackgroundColor3 = Color3.fromRGB(200,60,60)
+bTb.Text = "⚡ TP Base"
+bTb.TextColor3 = Color3.fromRGB(255,255,255)
+bTb.Font = Enum.Font.GothamBold
+bTb.TextSize = 10
+bTb.BorderSizePixel = 0
+Instance.new("UICorner", bTb).CornerRadius = UDim.new(0,6)
+
+local bTb2 = Instance.new("TextButton", PT)
+bTb2.Size = UDim2.new(1,-8,0,26)
+bTb2.Position = UDim2.new(0,4,0,62)
+bTb2.BackgroundColor3 = Color3.fromRGB(160,80,60)
+bTb2.Text = "🏠 Tween Base"
+bTb2.TextColor3 = Color3.fromRGB(255,255,255)
+bTb2.Font = Enum.Font.GothamBold
+bTb2.TextSize = 10
+bTb2.BorderSizePixel = 0
+Instance.new("UICorner", bTb2).CornerRadius = UDim.new(0,6)
+
+local bAu = Instance.new("TextButton", PT)
+bAu.Size = UDim2.new(1,-8,0,26)
+bAu.Position = UDim2.new(0,4,0,92)
+bAu.BackgroundColor3 = Color3.fromRGB(160,100,40)
+bAu.Text = "⚡ Auto Steal: OFF"
+bAu.TextColor3 = Color3.fromRGB(255,255,255)
+bAu.Font = Enum.Font.GothamBold
+bAu.TextSize = 10
+bAu.BorderSizePixel = 0
+Instance.new("UICorner", bAu).CornerRadius = UDim.new(0,6)
+
+local vT2 = Instance.new("TextLabel", PT)
+vT2.Size = UDim2.new(1,-8,0,14)
+vT2.Position = UDim2.new(0,4,0,124)
+vT2.BackgroundTransparency = 1
+vT2.Text = "⚡ Vel. Tween: " .. cfg.vT
+vT2.TextColor3 = Color3.fromRGB(200,200,255)
+vT2.Font = Enum.Font.Gotham
+vT2.TextSize = 10
+vT2.TextXAlignment = Enum.TextXAlignment.Left
+
+local sT = Instance.new("Frame", PT)
+sT.Size = UDim2.new(1,-8,0,14)
+sT.Position = UDim2.new(0,4,0,140)
+sT.BackgroundColor3 = Color3.fromRGB(30,30,45)
+sT.BorderSizePixel = 0
+Instance.new("UICorner", sT).CornerRadius = UDim.new(0,5)
+
+local fT = Instance.new("Frame", sT)
+fT.Size = UDim2.new(0.15,0,1,0)
+fT.BackgroundColor3 = Color3.fromRGB(120,80,200)
+fT.BorderSizePixel = 0
+Instance.new("UICorner", fT).CornerRadius = UDim.new(0,5)
+
+local kT = Instance.new("TextButton", sT)
+kT.Size = UDim2.new(0,14,0,14)
+kT.Position = UDim2.new(0.15,-7,0,0)
+kT.BackgroundColor3 = Color3.fromRGB(255,255,255)
+kT.Text = ""
+kT.BorderSizePixel = 0
+Instance.new("UICorner", kT).CornerRadius = UDim.new(1,0)
+
+local vC2 = Instance.new("TextLabel", PT)
+vC2.Size = UDim2.new(1,-8,0,14)
+vC2.Position = UDim2.new(0,4,0,162)
+vC2.BackgroundTransparency = 1
+vC2.Text = "🏃 Vel. Personagem: " .. cfg.vC
+vC2.TextColor3 = Color3.fromRGB(255,220,150)
+vC2.Font = Enum.Font.Gotham
+vC2.TextSize = 10
+vC2.TextXAlignment = Enum.TextXAlignment.Left
+
+local sC = Instance.new("Frame", PT)
+sC.Size = UDim2.new(1,-8,0,14)
+sC.Position = UDim2.new(0,4,0,178)
+sC.BackgroundColor3 = Color3.fromRGB(30,30,45)
+sC.BorderSizePixel = 0
+Instance.new("UICorner", sC).CornerRadius = UDim.new(0,5)
+
+local fC = Instance.new("Frame", sC)
+fC.Size = UDim2.new(0.05,0,1,0)
+fC.BackgroundColor3 = Color3.fromRGB(255,180,80)
+fC.BorderSizePixel = 0
+Instance.new("UICorner", fC).CornerRadius = UDim.new(0,5)
+
+local kC = Instance.new("TextButton", sC)
+kC.Size = UDim2.new(0,14,0,14)
+kC.Position = UDim2.new(0.05,-7,0,0)
+kC.BackgroundColor3 = Color3.fromRGB(255,255,255)
+kC.Text = ""
+kC.BorderSizePixel = 0
+Instance.new("UICorner", kC).CornerRadius = UDim.new(1,0)
+
+local aT, aC = false, false
+kT.MouseButton1Down:Connect(function() aT = true end)
+kC.MouseButton1Down:Connect(function() aC = true end)
+
+U.InputEnded:Connect(function(i)
+    if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+        aT = false aC = false
+    end
+end)
+
+U.InputChanged:Connect(function(i)
+    if i.UserInputType ~= Enum.UserInputType.MouseMovement and i.UserInputType ~= Enum.UserInputType.Touch then return end
+    local mx = i.Position.X
+    if aT then
+        local pct = math.clamp((mx - sT.AbsolutePosition.X) / sT.AbsoluteSize.X, 0, 1)
+        fT.Size = UDim2.new(pct,0,1,0)
+        kT.Position = UDim2.new(pct,-7,0,0)
+        cfg.vT = math.floor(100 + pct * 4900)
+        vT2.Text = "⚡ Vel. Tween: " .. cfg.vT
+    end
+    if aC then
+        local pct = math.clamp((mx - sC.AbsolutePosition.X) / sC.AbsoluteSize.X, 0, 1)
+        fC.Size = UDim2.new(pct,0,1,0)
+        kC.Position = UDim2.new(pct,-7,0,0)
+        cfg.vC = math.floor(16 + pct * 484)
+        vC2.Text = "🏃 Vel. Personagem: " .. cfg.vC
+        local ch = pl.Character
+        if ch and ch:FindFirstChild("Humanoid") then
+            ch.Humanoid.WalkSpeed = cfg.vC
+        end
+    end
+end)
+
+bSv.MouseButton1Click:Connect(function()
+    local ch = pl.Character
+    if ch and ch:FindFirstChild("HumanoidRootPart") then
+        cfg.base = ch.HumanoidRootPart.CFrame
+        bSv.Text = "✅ Salvo!"
+        task.wait(1.5)
+        bSv.Text = "📌 Salvar Base"
+    end
+end)
+
+bTb.MouseButton1Click:Connect(function()
+    if cfg.base then
+        local ch = pl.Character
+        if ch and ch:FindFirstChild("HumanoidRootPart") then
+            ch.HumanoidRootPart.CFrame = cfg.base
+        end
+    end
+end)
+
+bTb2.MouseButton1Click:Connect(function()
+    if cfg.base then task.spawn(function() voarPara(cfg.base, cfg.vT * 1.5) end) end
+end)
+
+bAu.MouseButton1Click:Connect(function()
+    cfg.auto = not cfg.auto
+    bAu.Text = cfg.auto and "⚡ Auto Steal: ON" or "⚡ Auto Steal: OFF"
+    if cfg.auto then
+        task.spawn(function()
+            while cfg.auto do
+                if cfg.pet and cfg.pet.parte then
+                    irPegarVoltar()
+                end
+                task.wait(0.5)
+            end
+        end)
+    end
+end)
+
+-- ABA MISC
+local function tg2(parent, nome, y, cb)
+    local f = Instance.new("Frame", parent)
+    f.Size = UDim2.new(1,-8,0,28)
+    f.Position = UDim2.new(0,4,0,y)
+    f.BackgroundColor3 = Color3.fromRGB(18,18,25)
+    f.BorderSizePixel = 0
+    Instance.new("UICorner", f).CornerRadius = UDim.new(0,6)
+
+    local l = Instance.new("TextLabel", f)
+    l.Size = UDim2.new(1,-50,1,0)
+    l.Position = UDim2.new(0,10,0,0)
+    l.BackgroundTransparency = 1
+    l.Text = nome
+    l.TextColor3 = Color3.fromRGB(220,220,220)
+    l.Font = Enum.Font.Gotham
+    l.TextSize = 10
+    l.TextXAlignment = Enum.TextXAlignment.Left
+
+    local bb = Instance.new("TextButton", f)
+    bb.Size = UDim2.new(0,40,0,20)
+    bb.Position = UDim2.new(1,-45,0,4)
+    bb.BackgroundColor3 = Color3.fromRGB(80,80,100)
+    bb.Text = "OFF"
+    bb.TextColor3 = Color3.fromRGB(255,255,255)
+    bb.Font = Enum.Font.GothamBold
+    bb.TextSize = 9
+    bb.BorderSizePixel = 0
+    Instance.new("UICorner", bb).CornerRadius = UDim.new(0,4)
+
+    local e = false
+    bb.MouseButton1Click:Connect(function()
+        e = not e
+        bb.Text = e and "ON" or "OFF"
+        bb.BackgroundColor3 = e and Color3.fromRGB(80,200,80) or Color3.fromRGB(80,80,100)
+        if cb then cb(e) end
+    end)
+end
+
+tg2(PM, "Aplicar Vel. Personagem", 5, function(on)
+    local ch = pl.Character
+    if ch and ch:FindFirstChild("Humanoid") then
+        ch.Humanoid.WalkSpeed = on and cfg.vC or 16
+    end
+end)
+
+tg2(PM, "Alerta Pet Raro", 40, function(on) cfg.alerta = on end)
+
+workspace.DescendantAdded:Connect(function(o)
+    if not cfg.alerta then return end
+    if o:IsA("Model") then
+        local nl = o.Name:lower()
+        for _, r in ipairs({"secret","divine","cosmic","holy","demon","god","mythic","eternal","gorilla"}) do
+            if nl:find(r) then
+                pcall(function()
+                    game.StarterGui:SetCore("SendNotification", {Title="🚨 PET RARO!",Text=o.Name.." apareceu!",Duration=5})
+                end)
+                break
+            end
+        end
+    end
+end)
+
+-- ==========================================
+-- ABRIR / MINIMIZAR (estilo Redz Hub)
+-- ==========================================
+local aberto = false
+
+local function abrirMenu()
+    aberto = true
+    j.Visible = true
+    b.Visible = false
+    atualizar()
+    trocar("Pets")
+end
+
+local function minimizar()
+    aberto = false
+    j.Visible = false
+    b.Visible = true
+end
+
+b.MouseButton1Click:Connect(abrirMenu)
+x.MouseButton1Click:Connect(minimizar)
+min.MouseButton1Click:Connect(minimizar)
+
+U.Input
